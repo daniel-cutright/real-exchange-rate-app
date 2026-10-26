@@ -1,5 +1,3 @@
-Python
-
 import io
 import requests
 import streamlit as st
