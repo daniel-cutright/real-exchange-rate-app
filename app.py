@@ -1,7 +1,5 @@
----
+Python
 
-#### 3. `app.py`
-```python
 import io
 import requests
 import streamlit as st
@@ -43,23 +41,19 @@ def fetch_imf_series(series_type: str, iso_code: str) -> pd.Series:
     Fetch monthly IMF data using SDMX 3.0 REST endpoints.
     series_type: 'CPI' or 'FX'
     """
-    # Base URL for IMF SDMX 3.0
     headers = {"Accept": "text/csv, application/json, text/plain"}
     
     if series_type == "CPI":
-        # CPI key: {ISO3}.CPI._T.IX.M
         url_candidates = [
             f"https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/CPI/~/{iso_code}.CPI._T.IX.M?c[TIME_PERIOD]=ge:1976-01",
             f"https://api.imf.org/external/sdmx/3.0/data/CPI/{iso_code}.CPI._T.IX.M",
             f"https://api.imf.org/external/sdmx/2.1/data/CPI/M.{iso_code}.CPI._T.IX?startPeriod=1976-01"
         ]
     else:
-        # For the US itself, exchange rate is identically 1.0 USD per USD
         if iso_code == "USA":
             dates = pd.date_range(start="1976-01-01", end="2026-12-01", freq="MS")
             return pd.Series(1.0, index=dates, name="FX")
         
-        # FX key: {ISO3}.XDC_USD.PA_RT.M (Period average, national currency per USD)
         url_candidates = [
             f"https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/ER/~/{iso_code}.XDC_USD.PA_RT.M?c[TIME_PERIOD]=ge:1976-01",
             f"https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IFS/~/{iso_code}.XDC_USD.PA_RT.M?c[TIME_PERIOD]=ge:1976-01",
@@ -70,7 +64,6 @@ def fetch_imf_series(series_type: str, iso_code: str) -> pd.Series:
         try:
             resp = requests.get(url, headers=headers, timeout=12)
             if resp.status_code == 200 and len(resp.text.strip()) > 0:
-                # If CSV returned
                 if "TIME_PERIOD" in resp.text:
                     df = pd.read_csv(io.StringIO(resp.text))
                     date_col = next((c for c in df.columns if "TIME_PERIOD" in c.upper() or "TIME" in c.upper()), None)
@@ -83,12 +76,9 @@ def fetch_imf_series(series_type: str, iso_code: str) -> pd.Series:
                         df = df.dropna().drop_duplicates(subset=["Date"]).sort_values("Date")
                         return pd.Series(df["Value"].values, index=df["Date"], name=series_type)
                 
-                # If JSON returned
                 elif resp.headers.get("Content-Type", "").startswith("application/json") or resp.text.startswith("{"):
                     data = resp.json()
-                    # Parse standard SDMX-JSON structures
                     obs_list = []
-                    # Try SDMX 3.0 / 2.1 data structure extraction
                     if "data" in data and "dataSets" in data["data"]:
                         dataset = data["data"]["dataSets"][0]
                         structure = data["data"]["structures"][0]
@@ -155,10 +145,8 @@ if df.empty:
     st.error("No overlapping monthly dates found between the retrieved series.")
     st.stop()
 
-# Exchange rate conversion:
-# E1 is local currency 1 per USD (e.g. GBP per USD). E2 is local currency 2 per USD (e.g. USD per USD = 1.0).
-# Nominal exchange rate S(t) = units of Country 2 currency per 1 unit of Country 1 currency.
-# S(t) = E2(t) / E1(t). (For UK -> US: 1.0 / (GBP per USD) = USD per GBP).
+# Nominal exchange rate S(t) = units of Country 2 currency per 1 unit of Country 1 currency
+# S(t) = E2(t) / E1(t)
 df["S"] = df["E2"] / df["E1"]
 
 # Real Exchange Rate: RER(t) = S(t) * P1(t) / P2(t)
@@ -256,7 +244,7 @@ else:  # Nominal
         go.Scatter(
             x=df_sample.index, 
             y=df_sample["S"],
-            name=f"Nominal Spot Rate S(t)",
+            name="Nominal Spot Rate S(t)",
             line=dict(color="#ff7f0e", width=2)
         )
     )
